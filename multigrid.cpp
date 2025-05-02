@@ -4,20 +4,27 @@
 #include <iostream>
 
 // Solve using repeated V-cycles
-std::vector<double> multigrid_solver(int N, std::vector<double> x, const std::vector<double> &b, double omega, int nu, int lmax, double tol)
+std::vector<double> multigrid_solver(int N, std::vector<double> x, const std::vector<double> &b,
+                                     double omega, int nu, int lmax, double tol)
 {
     const int maxIters = 50;
+    std::vector<double> residuals;
 
     for (int iter = 0; iter < maxIters; ++iter)
     {
         x = Vcycle(N, x, b, omega, nu, 1, lmax);
 
         double resNorm = calculateResidualNorm(x, b, N);
-        std::cout << "  Iteration " << iter + 1 << ", residual = " << resNorm << std::endl;
+        residuals.push_back(resNorm);
 
+        std::cout << "  Iteration " << iter + 1 << ", residual = " << resNorm << std::endl;
         if (resNorm < tol)
             break;
     }
+
+    // Save residuals to file
+    std::string filename = "residual_N" + std::to_string(N) + "_lmax" + std::to_string(lmax) + ".txt";
+    saveResiduals(residuals, filename);
 
     return x;
 }

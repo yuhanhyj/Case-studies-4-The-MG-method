@@ -1,5 +1,8 @@
 #include "utils.h"
 #include <cmath>
+#include <fstream>
+#include <iostream>
+#include <cmath>
 
 std::vector<double> matrixVectorProduct(const std::vector<double> &x, int N)
 {
@@ -32,6 +35,34 @@ std::vector<double> matrixVectorProduct(const std::vector<double> &x, int N)
     }
 
     return Ax;
+}
+
+#include <cmath>
+
+std::vector<double> calculateResidual(const std::vector<double> &x, const std::vector<double> &b, int N)
+{
+    std::vector<double> Ax = matrixVectorProduct(x, N);
+    std::vector<double> r(b.size());
+
+    for (size_t i = 0; i < b.size(); ++i)
+    {
+        r[i] = b[i] - Ax[i];
+    }
+
+    return r;
+}
+
+double calculateResidualNorm(const std::vector<double> &x, const std::vector<double> &b, int N)
+{
+    std::vector<double> r = calculateResidual(x, b, N);
+    double norm = 0.0;
+
+    for (double val : r)
+    {
+        norm += val * val;
+    }
+
+    return std::sqrt(norm);
 }
 
 std::vector<double> createRHSVector(int N, std::function<double(double, double)> f)
@@ -85,4 +116,41 @@ void jacobiSmoother(std::vector<double> &x, const std::vector<double> &b, int N,
             }
         }
     }
+}
+
+void saveResiduals(const std::vector<double> &residuals, const std::string &filename)
+{
+    std::ofstream file(filename);
+    for (size_t i = 0; i < residuals.size(); ++i)
+    {
+        file << i << " " << residuals[i] << "\n";
+    }
+    file.close();
+    std::cout << "Saved residuals to " << filename << std::endl;
+}
+
+// ✅ 新增的 saveSolution 实现
+void saveSolution(const std::vector<double> &x, int N, double dx, const std::string &filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Cannot open file " << filename << " for writing." << std::endl;
+        return;
+    }
+
+    file << N + 1 << std::endl;
+    for (int i = 0; i <= N; ++i)
+    {
+        for (int j = 0; j <= N; ++j)
+        {
+            int idx = i * (N + 1) + j;
+            double x_coord = j * dx;
+            double y_coord = i * dx;
+            file << x_coord << " " << y_coord << " " << x[idx] << "\n";
+        }
+    }
+
+    file.close();
+    std::cout << "Saved solution to " << filename << std::endl;
 }

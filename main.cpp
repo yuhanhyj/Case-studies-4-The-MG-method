@@ -33,13 +33,13 @@ int main()
         std::cout << "[2-level Multigrid]" << std::endl;
         int lmax_2level = 2;
         std::vector<double> x_2 = multigrid_solver(N, x0, b, omega, nu, lmax_2level, tol);
-        saveSolution(x_2, N, 1.0 / N, "results/sol_N" + std::to_string(N) + "_2level.txt");
+        saveSolution(x_2, N, 1.0 / N, "sol_N" + std::to_string(N) + "_2level.txt");
 
         // --- Full Multigrid Solve (max-level) ---
         std::cout << "[Full Multigrid with coarsest level N=8]" << std::endl;
         int lmax_full = compute_lmax(N, 8); // Determine levels down to N=8
         std::vector<double> x_full = multigrid_solver(N, x0, b, omega, nu, lmax_full, tol);
-        saveSolution(x_full, N, 1.0 / N, "results/sol_N" + std::to_string(N) + "_maxlevel.txt");
+        saveSolution(x_full, N, 1.0 / N, "sol_N" + std::to_string(N) + "_maxlevel.txt");
 
         std::cout << std::endl;
     }
