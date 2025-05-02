@@ -23,14 +23,43 @@ std::vector<double> multigrid_solver(int N, std::vector<double> x, const std::ve
 }
 
 // Initial V-cycle structure (we'll add restriction/prolong later)
-std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<double> &b,、double omega, int nu, int level, int lmax)
+std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<double> &b, double omega, int nu, int level, int lmax)
 {
-    // Step 1: smoothing (not yet implemented)
-    // smooth(N, x, b, omega, nu);
-    // Pre-smoothing
+    // 1. Pre-smoothing
     jacobiSmoother(x, b, N, omega, nu);
 
-    // Step 2–5: placeholder, returns x directly for now
+    // 2. Compute residual r = b - A * x
+    std::vector<double> r = calculateResidual(x, b, N);
+
+    // 3. Restrict residual to coarse grid
+    std::vector<double> r_coarse = restrictResidual(r, N);
+    int N_coarse = N / 2;
+
+    // 4. Coarse grid solve (recursively or directly)
+    std::vector<double> e_coarse;
+    if (level + 1 == lmax)
+    {
+        // Coarsest level: direct solve using Jacobi
+        std::vector<double> zero((N_coarse + 1) * (N_coarse + 1), 0.0);
+        e_coarse = zero;
+        jacobiSmoother(e_coarse, r_coarse, N_coarse, omega, 50); // 50 iterations for coarse solve
+    }
+    else
+    {
+        std::vector<double> zero((N_coarse + 1) * (N_coarse + 1), 0.0);
+        e_coarse = Vcycle(N_coarse, zero, r_coarse, omega, nu, level + 1, lmax);
+    }
+
+    // 5. Prolongate error and correct fine grid solution
+    std::vector<double> e_fine = prolongCorrection(e_coarse, N_coarse);
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        x[i] += e_fine[i];
+    }
+
+    // 6. Post-smoothing
+    jacobiSmoother(x, b, N, omega, nu);
+
     return x;
 }
 
