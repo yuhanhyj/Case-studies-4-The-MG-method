@@ -21,4 +21,14 @@ std::vector<double> matrixVectorProduct(const std::vector<double> &x, int N);
  */
 std::vector<double> createRHSVector(int N, std::function<double(double, double)> f);
 
+/**
+ * @brief Perform weighted Jacobi smoothing.
+ * @param x Solution vector to be updated
+ * @param b Right-hand side vector
+ * @param N Grid size
+ * @param omega Relaxation parameter
+ * @param iterations Number of smoothing iterations
+ */
+void jacobiSmoother(std::vector<double> &x, const std::vector<double> &b, int N, double omega, int iterations);
+
 #endif // UTILS_H

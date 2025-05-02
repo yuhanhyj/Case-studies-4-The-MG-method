@@ -55,3 +55,34 @@ std::vector<double> createRHSVector(int N, std::function<double(double, double)>
 
     return rhs;
 }
+
+void jacobiSmoother(std::vector<double> &x, const std::vector<double> &b, int N, double omega, int iterations)
+{
+    int size = (N + 1) * (N + 1);
+    double dx = 1.0 / N;
+    double coef = 1.0 / (dx * dx);
+    std::vector<double> x_new(size, 0.0);
+
+    for (int iter = 0; iter < iterations; ++iter)
+    {
+        for (int i = 1; i < N; ++i)
+        {
+            for (int j = 1; j < N; ++j)
+            {
+                int idx = i * (N + 1) + j;
+                double sum = x[idx - 1] + x[idx + 1] + x[idx - (N + 1)] + x[idx + (N + 1)];
+                x_new[idx] = (1.0 - omega) * x[idx] + (omega / 4.0) * (b[idx] * dx * dx + sum);
+            }
+        }
+
+        // Update x with new values
+        for (int i = 1; i < N; ++i)
+        {
+            for (int j = 1; j < N; ++j)
+            {
+                int idx = i * (N + 1) + j;
+                x[idx] = x_new[idx];
+            }
+        }
+    }
+}

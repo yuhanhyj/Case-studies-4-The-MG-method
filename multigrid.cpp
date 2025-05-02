@@ -27,6 +27,8 @@ std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<doubl
 {
     // Step 1: smoothing (not yet implemented)
     // smooth(N, x, b, omega, nu);
+    // Pre-smoothing
+    jacobiSmoother(x, b, N, omega, nu);
 
     // Step 2–5: placeholder, returns x directly for now
     return x;
