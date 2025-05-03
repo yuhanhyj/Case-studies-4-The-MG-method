@@ -91,8 +91,15 @@ void jacobiSmoother(std::vector<double> &x, const std::vector<double> &b, int N,
 {
     int size = (N + 1) * (N + 1);
     double dx = 1.0 / N;
-    double coef = 1.0 / (dx * dx);
+    double dx2 = dx * dx;
     std::vector<double> x_new(size, 0.0);
+
+    // For small N, use a more aggressive relaxation parameter
+    double adaptive_omega = omega;
+    if (N <= 16)
+    {
+        adaptive_omega = 0.8; // More aggressive for coarse grids
+    }
 
     for (int iter = 0; iter < iterations; ++iter)
     {
@@ -102,7 +109,7 @@ void jacobiSmoother(std::vector<double> &x, const std::vector<double> &b, int N,
             {
                 int idx = i * (N + 1) + j;
                 double sum = x[idx - 1] + x[idx + 1] + x[idx - (N + 1)] + x[idx + (N + 1)];
-                x_new[idx] = (1.0 - omega) * x[idx] + (omega / 4.0) * (b[idx] * dx * dx + sum);
+                x_new[idx] = (1.0 - adaptive_omega) * x[idx] + (adaptive_omega / 4.0) * (b[idx] * dx2 + sum);
             }
         }
 
