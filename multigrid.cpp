@@ -2,35 +2,96 @@
 #include "utils.h"
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <chrono>
 
 // Solve using repeated V-cycles
-std::vector<double> multigrid_solver(int N, std::vector<double> x, const std::vector<double> &b,
-                                     double omega, int nu, int lmax, double tol)
+std::vector<double> multigrid_solver(int N, std::vector<double> x, const std::vector<double> &b, double omega, int nu, int lmax, double tol, int &coarseSolves, int &iterations, double &runtime)
 {
-    const int maxIters = 50;
+    const int maxIters = 100; // Increased from 50 to give more chances to converge
     std::vector<double> residuals;
+    coarseSolves = 0;
+    iterations = 0;
+
+    // Track stagnation and divergence
+    double prevResNorm = std::numeric_limits<double>::max();
+    int stagnationCount = 0;
+    const double stagnationTolerance = 0.05; // 5% improvement threshold
+    const int maxStagnationIters = 5;        // Max consecutive stagnation iterations
+
+    // Start timer
+    auto startTime = std::chrono::high_resolution_clock::now();
 
     for (int iter = 0; iter < maxIters; ++iter)
     {
-        x = Vcycle(N, x, b, omega, nu, 1, lmax);
+        x = Vcycle(N, x, b, omega, nu, 1, lmax, coarseSolves);
 
         double resNorm = calculateResidualNorm(x, b, N);
         residuals.push_back(resNorm);
+        iterations = iter + 1;
 
         std::cout << "  Iteration " << iter + 1 << ", residual = " << resNorm << std::endl;
+
+        // Check convergence
         if (resNorm < tol)
+        {
+            std::cout << "  Converged to tolerance " << tol << std::endl;
             break;
+        }
+
+        // Check for divergence
+        if (iter > 0 && resNorm > prevResNorm * 1.1)
+        { // 10% increase in residual
+            std::cout << "  Divergence detected! Stopping iterations." << std::endl;
+            break;
+        }
+
+        // Check for stagnation
+        if (iter > 0 && prevResNorm - resNorm < prevResNorm * stagnationTolerance)
+        {
+            stagnationCount++;
+            if (stagnationCount >= maxStagnationIters)
+            {
+                std::cout << "  Stagnation detected! Insufficient progress over "
+                          << maxStagnationIters << " iterations." << std::endl;
+                break;
+            }
+        }
+        else
+        {
+            stagnationCount = 0; // Reset counter if good progress
+        }
+
+        prevResNorm = resNorm;
     }
 
+    // Calculate runtime
+    auto endTime = std::chrono::high_resolution_clock::now();
+    runtime = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+
+    // Report summary
+    std::cout << "  Total iterations: " << iterations << std::endl;
+    std::cout << "  Total coarse grid solves: " << coarseSolves << std::endl;
+    std::cout << "  Runtime: " << runtime << " ms" << std::endl;
+
     // Save residuals to file
-    std::string filename = "residual_N" + std::to_string(N) + "_lmax" + std::to_string(lmax) + ".txt";
+    std::string filename = "residual_N" + std::to_string(N) + "_lmax" + std::to_string(lmax);
+    // Add a method identifier to distinguish between 2-level and max-level
+    if (lmax == 2)
+    {
+        filename += "_2level.txt";
+    }
+    else
+    {
+        filename += "_maxlevel.txt";
+    }
     saveResiduals(residuals, filename);
 
     return x;
 }
 
-// Initial V-cycle structure (we'll add restriction/prolong later)
-std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<double> &b, double omega, int nu, int level, int lmax)
+// Initial V-cycle structure with coarse solve counting
+std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<double> &b, double omega, int nu, int level, int lmax, int &coarseSolves)
 {
     // 1. Pre-smoothing
     jacobiSmoother(x, b, N, omega, nu);
@@ -49,12 +110,14 @@ std::vector<double> Vcycle(int N, std::vector<double> x, const std::vector<doubl
         // Coarsest level: direct solve using Jacobi
         std::vector<double> zero((N_coarse + 1) * (N_coarse + 1), 0.0);
         e_coarse = zero;
-        jacobiSmoother(e_coarse, r_coarse, N_coarse, omega, 50); // 50 iterations for coarse solve
+        // Use more iterations for better coarse grid solve
+        jacobiSmoother(e_coarse, r_coarse, N_coarse, omega, 100);
+        coarseSolves++; // Count this coarse solve
     }
     else
     {
         std::vector<double> zero((N_coarse + 1) * (N_coarse + 1), 0.0);
-        e_coarse = Vcycle(N_coarse, zero, r_coarse, omega, nu, level + 1, lmax);
+        e_coarse = Vcycle(N_coarse, zero, r_coarse, omega, nu, level + 1, lmax, coarseSolves);
     }
 
     // 5. Prolongate error and correct fine grid solution
